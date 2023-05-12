@@ -31,25 +31,25 @@ def show_centerline(road):
 
     plt.plot(centerline[:,0], centerline[:,1], "--", color="0.7")
 
+def visualize_centerline(centerline) -> None:
+    """Visualize the computed centerline.
+    Args:
+        centerline: Sequence of coordinates forming the centerline
+    """
+    line_coords = list(zip(*centerline))
+    lineX = line_coords[0]
+    lineY = line_coords[1]
+    plt.plot(lineX, lineY, "--", color="grey", alpha=1, linewidth=1, zorder=0)
+    plt.text(lineX[0], lineY[0], "s")
+    plt.text(lineX[-1], lineY[-1], "e")
+    plt.axis("equal")
+
 def show_traj(traj, type_):
     """
     args: ndarray in shape of (n, 2)
     """
     plt.plot(traj[:, 0], traj[:, 1], color=COLOR_DICT[type_])
 
-# def reconstruct_polyline(features, traj_mask, lane_mask, add_len):
-#     traj_ls, lane_ls = [], []
-#     for id_, mask in traj_mask.items():
-#         data = features[mask[0]: mask[1]]
-#         traj = np.vstack((data[:,0:2], data[-1, 2:4]))
-#         traj_ls.append(traj)
-
-#     for id_, mask in lane_mask.items():
-#         data = features[mask[0]+add_len: mask[1]+add_len]
-#         lane = np.vstack((data[:, 0:2], data[-1, 2:4]))
-#         lane_ls.append(lane)
-    
-#     return traj_ls, lane_ls
 def coordinate_concat(xs, ys, vec_xs, vec_ys, idx):
     """ concat x, y into (x, y)"""
     x = xs[idx]
@@ -72,60 +72,73 @@ def reconstruct_polylines(features):
     steps = features[:,4]
     poly_id = features[:,5]
 
-    #plot cav
+    #visualize cav
     idx0 = (poly_id == 0).nonzero(as_tuple=True)
     xy0, vec_xy0 = coordinate_concat(xs, ys, vec_xs, vec_ys, idx0)
     traj_end0 = xy0 + vec_xy0
     plt.plot(xy0[:,0], xy0[:,1], 'r')
-    plt.plot(traj_end0[-2:,0], traj_end0[-2:,0], 'orange')
+    plt.plot(traj_end0[-2:,0], traj_end0[-2:,1], 'r')
 
-    #plot other vehicles and lanes
+    #visualize other vehicles and lanes
     for i in range(1, len(poly_id.unique())):
         idx = (poly_id == i).nonzero(as_tuple=True)
         xy, vec_xy = coordinate_concat(xs, ys, vec_xs, vec_ys, idx)
         step = steps[idx]
         if torch.max(step) == 0.0:  #lane centers
-            lane_end = (xy*2+vec_xy)/2.0
-            lane_start = (xy*2-vec_xy)/2.0
-            plt.plot(lane_start[:,0], lane_start[:,1], '--', c='0.7')
-            plt.plot(lane_end[-2:,0], lane_end[-2:,1], '--', c='0.7')
+            lane_start = (xy*2.0-vec_xy)/2.0
+            lane_end = (xy[-1,:]*2.0+vec_xy[-1,:])/2.0
+            lane = np.vstack([lane_start, lane_end.reshape(-1, 2)])
+            # plt.plot(lane_start[:,0], lane_start[:,1], '--', c='0.7', zorder=0)
+            # plt.plot(lane_end[-2:,0], lane_end[-2:,1], '--', c='0.7', zorder=0)
+            visualize_centerline(lane)
         else: #traj starts
             traj_end = xy + vec_xy
-            plt.plot(xy[:,0], xy[:,1],'orange')
-            plt.plot(traj_end[-2:,0], traj_end[-2:,0], 'orange')
-    return traj_end0
+            traj = np.vstack([xy, traj_end[-1,:].reshape(-1, 2)])
+            # plt.plot(traj[:,0], traj[:,1],'orange', zorder=5)
+            plt.plot(traj[:, 0], traj[:, 1], color=COLOR_DICT["NCV"], alpha=1, linewidth=1, zorder=5)
+            plt.text(traj[0, 0], traj[0, 1], "{}_s".format(i), c='darkorange')
+            # plot_traj(traj,torch.zeros_like(traj))
+    return traj_end0[-1,:]
 
 def reconstruct_the_scene_with_predictions(features, pred_y, gt_y):
+    """
+    pred_y: torch.Tensor in shape of (50, 2)
+    gt_y: torch.Tensor in shape of (50, 2)
+
+    """
     plt.figure(dpi=200)
-    cav_traj_end = reconstruct_polylines(features)
-    cav_last_observed = cav_traj_end[-1,:]
+    cav_last_observed = reconstruct_polylines(features)
 
-    pred_y_cat = torch.vstack([pred_y[:, :50].reshape(-1, 1), pred_y[:, 50:].reshape(-1,1)])
-    gt_y_cat = torch.vstack([gt_y[:, :50].reshape(-1,1), gt_y[:, 50:].reshape(-1,1)])
-    pred_y_reconstruct = torch.vstack([pred_y_cat[0,:]+ cav_last_observed, pred_y_cat[1:,:]+pred_y_cat[:-1,:]+cav_last_observed])
-    gt_y_reconstruct = torch.vstack([gt_y_cat[0,:]+cav_last_observed, gt_y_cat[1:,:]+gt_y_cat[:-1,:]+cav_last_observed])
-    plt.plot(gt_y_reconstruct[:, 0], gt_y_reconstruct[:, 1], 'ro')
-    plt.plot(pred_y_reconstruct[:, 0], pred_y_reconstruct[:, 1], color='b')#lw=0, marker='o', fillstyle="none")
-
+    # reconstruct y from offset
+    pred_y_ = [list(torch.sum(pred_y[:i,:],axis=0)) for i in range(pred_y.shape[0])]
+    pred_y_reconstruct = torch.FloatTensor(pred_y_) + cav_last_observed
+    # pred_y_reconstruct = torch.vstack([pred_y[0,:]+ cav_last_observed, pred_y[1:,:]+pred_y[:-1,:]+cav_last_observed])
+    gt_y_ = [list(torch.sum(gt_y[:i,:],axis=0)) for i in range(gt_y.shape[0])]
+    gt_y_reconstruct = torch.FloatTensor(gt_y_) + cav_last_observed
+    # gt_y_reconstruct = torch.vstack([gt_y[0,:]+cav_last_observed, gt_y[1:,:]+gt_y[:-1,:]+cav_last_observed])
+    plt.plot(gt_y_reconstruct[:, 0], gt_y_reconstruct[:, 1], "d-", color=COLOR_DICT["CAV"], alpha=1, linewidth=1, zorder=5)
+    plt.plot(pred_y_reconstruct[:, 0], pred_y_reconstruct[:, 1], color='b', zorder=5)#lw=0, marker='o', fillstyle="none")
 
 def show_pred_and_gt(pred_y, gt_y, orig):
     """
-    pred_y: torch.Tensor in shape of (1, 100)
-    gt_y: torch.Tensor in shape of (1, 100)
+    pred_y: torch.Tensor in shape of (100,)
+    gt_y: torch.Tensor in shape of (100,)
     orig: torch.Tensor, last observed traj point in the shape of (1,2)
     """
-    pred_y_cat = torch.vstack([pred_y[:, :50], pred_y[:, 50:]]).reshape(-1,2)
-    gt_y_cat = torch.vstack([gt_y[:, :50], gt_y[:, 50:]]).reshape(-1,2)
-    pred_y_devectornize = torch.vstack([pred_y_cat[0,:]+orig, pred_y_cat[1:,:]+pred_y_cat[:-1,:]+orig])
-    gt_y_devectornize = torch.vstack([gt_y_cat[0,:]+orig, gt_y_cat[1:,:]+gt_y_cat[:-1,:]+orig])
-    plt.plot(gt_y_devectornize[:, 0], gt_y_devectornize[:, 1], color='r')
-    plt.plot(pred_y_devectornize[:, 0], pred_y_devectornize[:, 1], color='b')#lw=0, marker='o', fillstyle="none")
+    pred_y_cat = pred_y.reshape(-1,2)
+    gt_y_cat = gt_y.reshape(-1,2)
+    pred_y_ = [list(torch.sum(pred_y_cat[:i,:],axis=0)) for i in range(pred_y_cat.shape[0])]
+    pred_y_reconstruct = torch.FloatTensor(pred_y_) + orig
+    gt_y_ = [list(torch.sum(gt_y_cat[:i,:],axis=0)) for i in range(gt_y_cat.shape[0])]
+    gt_y_reconstruct = torch.FloatTensor(gt_y_) + orig
+    plt.plot(gt_y_reconstruct[:, 0], gt_y_reconstruct[:, 1], color='r')
+    plt.plot(pred_y_reconstruct[:, 0], pred_y_reconstruct[:, 1], color='b')#lw=0, marker='o', fillstyle="none")
 
 def show_predict_result(data, pred_y:torch.Tensor, y, add_len, show_lane=True):
     features, _ = data['POLYLINE_FEATURES'].values[0], data['GT'].values[0].astype(
         np.float32)
     traj_mask, lane_mask = data["TRAJ_ID_TO_MASK"].values[0], data['LANE_ID_TO_MASK'].values[0]
-    lane_start, lane_end, traj_start, traj_end, cav_start, cav_end = reconstruct_polyline(features)
+    lane_start, lane_end, traj_start, traj_end, cav_start, cav_end = reconstruct_polylines(features)
 
     type_ = 'CAV'
     for traj in traj_ls:
