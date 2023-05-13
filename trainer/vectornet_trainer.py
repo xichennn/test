@@ -9,18 +9,12 @@ import torch.nn as nn
 from torch.optim import Adam, AdamW
 from torch_geometric.data import DataLoader
 from torch_geometric.nn import DataParallel
-from VectorNet.utils.metric import get_displacement_errors_and_miss_rate
-# %%
-# try:
-#     from apex import amp
-#     from apex.parallel import DistributedDataParallel
-# except:
-#     pass
+from utils.metric import get_displacement_errors_and_miss_rate
 
-from VectorNet.trainer.trainer import Trainer
-from VectorNet.model.vectornet import VectorNet
-from VectorNet.utils.optim_schedule import ScheduledOptim
-from VectorNet.utils.loss import VectorLoss
+from trainer.trainer import Trainer
+from model.vectornet import VectorNet
+from utils.optim_schedule import ScheduledOptim
+from utils.loss import VectorLoss
 # %%
 class VectorNetTrainer(Trainer):
     """
