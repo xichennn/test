@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 sys.path.append('/Users/xichen/Documents/paper2-traj-pred/carla-data/VectorNet')
 
-from VectorNet.model.layers.scoring_and_selection import distance_metric
+from model.layers.scoring_and_selection import distance_metric
 
 class VectorLoss(nn.Module):
     """
