@@ -12,13 +12,13 @@ from torch_geometric.data import DataLoader, DataListLoader, Batch, Data
 sys.path.append('/Users/xichen/Documents/paper2-traj-pred/carla-data/VectorNet')
 
 # %%
-from VectorNet.model.layers.global_graph import GlobalGraph, SelfAttentionFCLayer
-from VectorNet.model.layers.subgraph import SubGraph
-from VectorNet.model.layers.basic_module import MLP
-from VectorNet.model.backbone.vectornet_v2 import VectorNetBackbone
+from model.layers.global_graph import GlobalGraph, SelfAttentionFCLayer
+from model.layers.subgraph import SubGraph
+from model.layers.basic_module import MLP
+from model.backbone.vectornet_v2 import VectorNetBackbone
 # %%
-from VectorNet.utils.loss import VectorLoss
-from VectorNet.dataloader.carla_scene_loader import GraphData, CarlaInMem
+from utils.loss import VectorLoss
+from dataloader.carla_scene_loader import GraphData, CarlaInMem
 # %%
 class VectorNet(nn.Module):
     """
