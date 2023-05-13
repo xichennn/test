@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from VectorNet.model.layers.basic_module import MLP
+from model.layers.basic_module import MLP
 
 
 def distance_metric(traj_candidate: torch.Tensor, traj_gt: torch.Tensor):
