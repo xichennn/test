@@ -11,7 +11,7 @@ import torch.distributed as dist
 from torch.utils.data import distributed
 from torch.utils.tensorboard import SummaryWriter
 from torch_geometric.data import DataLoader, DataListLoader
-from VectorNet.utils.metric import get_displacement_errors_and_miss_rate
+from utils.metric import get_displacement_errors_and_miss_rate
 
 import gc
 
