@@ -10,10 +10,10 @@ from torch_geometric.data import DataLoader, Batch, Data
 
 sys.path.append('/Users/xichen/Documents/paper2-traj-pred/carla-data/VectorNet')
 
-from VectorNet.model.layers.global_graph import GlobalGraph
-from VectorNet.model.layers.subgraph_v2 import SubGraph
-from VectorNet.model.layers.basic_module import MLP 
-from VectorNet.dataloader.carla_scene_loader import CarlaInMem, GraphData
+from model.layers.global_graph import GlobalGraph
+from model.layers.subgraph_v2 import SubGraph
+from model.layers.basic_module import MLP 
+from dataloader.carla_scene_loader import CarlaInMem, GraphData
 
 class VectorNetBackbone(nn.Module):
     """
