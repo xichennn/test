@@ -112,11 +112,11 @@ def reconstruct_the_scene_with_predictions(features, pred_y, gt_y):
     # reconstruct y from offset
     pred_y_ = [list(torch.sum(pred_y[:i,:],axis=0)) for i in range(pred_y.shape[0])]
     pred_y_reconstruct = torch.FloatTensor(pred_y_) + cav_last_observed
-    # pred_y_reconstruct = torch.vstack([pred_y[0,:]+ cav_last_observed, pred_y[1:,:]+pred_y[:-1,:]+cav_last_observed])
+
     gt_y_ = [list(torch.sum(gt_y[:i,:],axis=0)) for i in range(gt_y.shape[0])]
     gt_y_reconstruct = torch.FloatTensor(gt_y_) + cav_last_observed
-    # gt_y_reconstruct = torch.vstack([gt_y[0,:]+cav_last_observed, gt_y[1:,:]+gt_y[:-1,:]+cav_last_observed])
-    plt.plot(gt_y_reconstruct[:, 0], gt_y_reconstruct[:, 1], "d-", color=COLOR_DICT["CAV"], alpha=1, linewidth=1, zorder=5)
+
+    plt.plot(gt_y_reconstruct[:, 0], gt_y_reconstruct[:, 1], "--", color=COLOR_DICT["CAV"], alpha=1, linewidth=1, zorder=5)
     plt.plot(pred_y_reconstruct[:, 0], pred_y_reconstruct[:, 1], color='b', zorder=5)#lw=0, marker='o', fillstyle="none")
 
 def show_pred_and_gt(pred_y, gt_y, orig):
