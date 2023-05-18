@@ -47,7 +47,7 @@ from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Tuple, Un
 import numpy as np
 import matplotlib.pyplot as plt
 
-from lane_segment import LaneSegment, Road
+from maps.lanelet2.lane_segment import LaneSegment, Road
 
 logger = logging.getLogger(__name__)
 
