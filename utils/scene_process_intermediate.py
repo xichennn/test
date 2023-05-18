@@ -5,8 +5,8 @@ import pandas as pd
 import copy
 from os.path import join as pjoin
 
-sys.path.append('/Users/xichen/Documents/paper2-traj-pred/carla-data/maps/lanelet2')
-import lane_segment, load_xml
+# sys.path.append('/Users/xichen/Documents/paper2-traj-pred/carla-data/maps/lanelet2')
+from maps.lanelet2 import lane_segment, load_xml
 sys.path.append('/Users/xichen/Documents/paper2-traj-pred/carla-data')
 from utils.lane_sampling import Spline2D, visualize_centerline
 import matplotlib.pyplot as plt
