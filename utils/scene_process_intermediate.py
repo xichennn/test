@@ -105,7 +105,6 @@ class scene_process():
         return:
         data: dic with trajs and steps as keys. values in the order of [cav,ngbrs]
         """
-
         frames = np.sort(np.unique(df["frame"].values))
         mapping = dict()
         for i, frame in enumerate(frames):
@@ -117,7 +116,7 @@ class scene_process():
         steps = [mapping[x] for x in df['frame'].values]
         steps = np.asarray(steps, np.int64)
 
-        objs = df.groupby(['vid', 'object_type']).groups
+        objs = df.groupby(['vid', 'object_type', 'in_av_range']).groups
         keys = list(objs.keys())
         obj_type = [x[1] for x in keys]
         
@@ -134,9 +133,14 @@ class scene_process():
             ngbr_trajs.append(trajs[idcs])
             ngbr_steps.append(steps[idcs])
 
+        obj_types = ['cav'] + [x[1] for x in keys]
+        in_av_ranges = [True] + [x[2] for x in keys]
+
         data = dict()
         data["trajs"] = [cav_traj] + ngbr_trajs
         data["steps"] = [cav_step] + ngbr_steps
+        data['obj_type'] = obj_types
+        data["in_av_range"] = in_av_ranges
 
         return data
     
