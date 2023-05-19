@@ -58,9 +58,13 @@ class GraphData(Data):
         
 # dataset loader which loads data into memory
 class CarlaInMem(InMemoryDataset):
-    def __init__(self, root, transform=None, pre_transform=None):
+    def __init__(self, root, idx, transform=None, pre_transform=None):
+        """
+        root: path to file
+        idx: which dataset
+        """
         super(CarlaInMem, self).__init__(root, transform, pre_transform)
-        self.data, self.slices = torch.load(self.processed_paths[0])
+        self.data, self.slices = torch.load(self.processed_paths[idx])
         gc.collect()
     
     @property
@@ -141,6 +145,7 @@ class CarlaInMem(InMemoryDataset):
             idx += 1
 
     def get(self, idx):
+        """idx of each datapoint in dataset"""
         data = super(CarlaInMem, self).get(idx).clone()
 
         feature_len = data.x.shape[1]
