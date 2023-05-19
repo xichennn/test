@@ -69,69 +69,76 @@ class CarlaInMem(InMemoryDataset):
     
     @property
     def processed_file_names(self):
-        return ['data.pt']
+        return ['data_all.pt', 'data_cav.pt', 'data_av.pt']
     
     def download(self):
         pass
 
     def process(self):
-        """ transform the raw data and store in GraphData"""
-        # loading the raw data
-        traj_lens = []
-        valid_lens = []
-        candidate_lens = []
-        for raw_path in tqdm(self.raw_paths, desc="Loading Raw Data..."):
-            raw_data = pd.read_pickle(raw_path)
+        """ 
+        transform the raw data and store in GraphData
+        idx=0: read all neighbors in cv range
+        idx=1: read all neighbors in cav range
+        idx=2: read only neighbors in av range
+        """
+        idx = 0
+        while idx<3:
+            # loading the raw data
+            traj_lens = []
+            valid_lens = []
+            candidate_lens = []
+            for raw_path in tqdm(self.raw_paths, desc="Loading Raw Data..."):
+                raw_data = self._get_raw_data(raw_path, idx)
+            
+                #statistics
+                traj_num = raw_data["feats"].values[0].shape[0] #shape[num_vehs, hist_steps, num_feats]
+                lane_num = raw_data['graph'].values[0]['lane_idcs'].max() + 1
+                candidate_num = raw_data['tar_candts'].values[0].shape[0]
 
-            #statistics
-            traj_num = raw_data["feats"].values[0].shape[0] #shape[num_vehs, hist_steps, num_feats]
-            traj_lens.append(traj_num)
+                traj_lens.append(traj_num)
+                valid_lens.append(traj_num + lane_num)
+                candidate_lens.append(candidate_num)
+            num_valid_len_max = np.max(valid_lens)
+            num_candidate_max = np.max(candidate_lens)
+            print("\n[Argoverse]: The maximum of valid length is {}".format(num_valid_len_max))
+            print("[Argoverse]: The maximum of no. of candidates is {}.".format(num_candidate_max))
+        
+            # pad vectors to the largest polyline id and extend cluster, save the Data to disk
+            data_list = []
+            for ind, raw_path in enumerate(tqdm(self.raw_paths, desc="Transforming the data to GraphData...")):
+                raw_data = self._get_raw_data(raw_path, idx)
 
-            lane_num = raw_data['graph'].values[0]['lane_idcs'].max() + 1
-            valid_lens.append(traj_num + lane_num)
+                # input data
+                x, cluster, edge_index, identifier = self._get_x(raw_data)
+                y = self._get_y(raw_data)
+                graph_input = GraphData(
+                    x=torch.from_numpy(x).float(),
+                    y=torch.from_numpy(y).float(),
+                    cluster=torch.from_numpy(cluster).short(),
+                    edge_index=torch.from_numpy(edge_index).long(),
+                    identifier=torch.from_numpy(identifier).float(),    # the identify embedding of global graph completion
 
-            candidate_num = raw_data['tar_candts'].values[0].shape[0]
-            candidate_lens.append(candidate_num)
-        num_valid_len_max = np.max(valid_lens)
-        num_candidate_max = np.max(candidate_lens)
-        print("\n[Argoverse]: The maximum of valid length is {}".format(num_valid_len_max))
-        print("[Argoverse]: The maximum of no. of candidates is {}.".format(num_candidate_max))
-    
-        # pad vectors to the largest polyline id and extend cluster, save the Data to disk
-        data_list = []
-        for ind, raw_path in enumerate(tqdm(self.raw_paths, desc="Transforming the data to GraphData...")):
-            raw_data = pd.read_pickle(raw_path)
+                    traj_len=torch.tensor([traj_lens[ind]]).int(),            # number of traj polyline
+                    valid_len=torch.tensor([valid_lens[ind]]).int(),          # number of valid polyline
+                    time_step_len=torch.tensor([num_valid_len_max]).int(),    # the maximum of no. of polyline
 
-            # input data
-            x, cluster, edge_index, identifier = self._get_x(raw_data)
-            y = self._get_y(raw_data)
-            graph_input = GraphData(
-                x=torch.from_numpy(x).float(),
-                y=torch.from_numpy(y).float(),
-                cluster=torch.from_numpy(cluster).short(),
-                edge_index=torch.from_numpy(edge_index).long(),
-                identifier=torch.from_numpy(identifier).float(),    # the identify embedding of global graph completion
+                    candidate_len_max=torch.tensor([num_candidate_max]).int(),
+                    candidate_mask=[],
+                    candidate=torch.from_numpy(raw_data['tar_candts'].values[0]).float(),
+                    candidate_gt=torch.from_numpy(raw_data['gt_candts'].values[0]).bool(),
+                    offset_gt=torch.from_numpy(raw_data['gt_tar_offset'].values[0]).float(),
+                    target_gt=torch.from_numpy(raw_data['gt_preds'].values[0][0][-1, :]).float(),
 
-                traj_len=torch.tensor([traj_lens[ind]]).int(),            # number of traj polyline
-                valid_len=torch.tensor([valid_lens[ind]]).int(),          # number of valid polyline
-                time_step_len=torch.tensor([num_valid_len_max]).int(),    # the maximum of no. of polyline
+                    orig=torch.from_numpy(raw_data['cav_orig'].values[0]).float().unsqueeze(0),
+                    rot=torch.from_numpy(raw_data['rot'].values[0]).float().unsqueeze(0),
+                    seq_id=torch.tensor([int(raw_data['seq_id'])]).int()
+                )
+                data_list.append(graph_input)
 
-                candidate_len_max=torch.tensor([num_candidate_max]).int(),
-                candidate_mask=[],
-                candidate=torch.from_numpy(raw_data['tar_candts'].values[0]).float(),
-                candidate_gt=torch.from_numpy(raw_data['gt_candts'].values[0]).bool(),
-                offset_gt=torch.from_numpy(raw_data['gt_tar_offset'].values[0]).float(),
-                target_gt=torch.from_numpy(raw_data['gt_preds'].values[0][0][-1, :]).float(),
-
-                orig=torch.from_numpy(raw_data['cav_orig'].values[0]).float().unsqueeze(0),
-                rot=torch.from_numpy(raw_data['rot'].values[0]).float().unsqueeze(0),
-                seq_id=torch.tensor([int(raw_data['seq_id'])]).int()
-            )
-            data_list.append(graph_input)
-
-        # Store the processed data
-        data, slices = self.collate(data_list)
-        torch.save((data, slices), self.processed_paths[0])
+            # Store the processed data
+            data, slices = self.collate(data_list)
+            torch.save((data, slices), self.processed_paths[idx])
+            idx += 1
 
     def get(self, idx):
         data = super(CarlaInMem, self).get(idx).clone()
@@ -156,6 +163,54 @@ class CarlaInMem(InMemoryDataset):
         assert data.cluster.shape[0] == data.x.shape[0], "[ERROR]: Loader error!"
 
         return data
+    
+    @staticmethod
+    def _get_raw_data(raw_path, idx):
+        """
+        reconstruct the features of selected neighhbors in raw_data
+        #list: trajs, steps, obj_type, in_av_range, ref_ctr_lines, 
+        #numpy.ndarray: cav_orig, rot, feats, has_obss, has_preds, gt_preds, tar_candts, gt_candts, gt_tar_offset, 
+        #numpy.float32: theta
+        #numpy.int64: "ref_cetr_idx", "seq_id"
+        #dict: graph
+        """
+        if idx == 0: #get all neighbors in cv range
+            raw_data = pd.read_pickle(raw_path)
+
+        elif idx == 1: #get all neighbors in cav range
+            raw_data0 = pd.read_pickle(raw_path)
+            raw_data1 = {}
+            obj_len = len(raw_data0["in_av_range"].values[0])
+            for key in raw_data0.keys():
+                if key in ["trajs", "steps", "obj_type", "in_av_range"]:
+                    raw_data1[key] = pd.Series([[raw_data0[key].values[0][i] for i in range(obj_len) 
+                                       if raw_data0["in_av_range"].values[0][i]==True or
+                                        (raw_data0["in_av_range"].values[0][i]==False and 
+                                         raw_data0["obj_type"].values[0][i]=="cv")]])
+                elif key in ["feats", "has_obss", "has_preds", "gt_preds"]:
+                    raw_data1[key] = pd.Series([np.asarray([raw_data0[key].values[0][i] for i in range(obj_len) 
+                                       if raw_data0["in_av_range"].values[0][i]==True or
+                                        (raw_data0["in_av_range"].values[0][i]==False and 
+                                         raw_data0["obj_type"].values[0][i]=="cv")])])
+
+                else:
+                    raw_data1[key] = raw_data0[key]
+            raw_data = pd.DataFrame(raw_data1)
+
+        elif idx == 2: #get all neighbors only in av range
+            raw_data0 = pd.read_pickle(raw_path)
+            raw_data1 = {}
+            obj_len = len(raw_data0["in_av_range"].values[0])
+            for key in raw_data0.keys():
+                if key in ["trajs", "steps", "obj_type", "in_av_range"]:
+                    raw_data1[key] = pd.Series([[raw_data0[key].values[0][i] for i in range(obj_len) if raw_data0["in_av_range"].values[0][i]==True]])
+                elif key in ["feats", "has_obss", "has_preds", "gt_preds"]:
+                    raw_data1[key] = pd.Series([np.asarray([raw_data0[key].values[0][i] for i in range(obj_len) if raw_data0["in_av_range"].values[0][i]==True])])
+                else:
+                    raw_data1[key] = raw_data0[key]
+            raw_data = pd.DataFrame(raw_data1)
+
+        return raw_data
     
     @staticmethod
     def _get_x(data_seq):
