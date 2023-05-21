@@ -193,10 +193,13 @@ class CarlaInMem(InMemoryDataset):
                                         (raw_data0["in_av_range"].values[0][i]==False and 
                                          raw_data0["obj_type"].values[0][i]=="cv")]])
                 elif key in ["feats", "has_obss", "has_preds", "gt_preds"]:
+                  try:
                     raw_data1[key] = pd.Series([np.asarray([raw_data0[key].values[0][i] for i in range(obj_len) 
                                        if raw_data0["in_av_range"].values[0][i]==True or
                                         (raw_data0["in_av_range"].values[0][i]==False and 
                                          raw_data0["obj_type"].values[0][i]=="cv")])])
+                  except:
+                    print(f'raw path: {raw_path}')
 
                 else:
                     raw_data1[key] = raw_data0[key]
@@ -210,7 +213,10 @@ class CarlaInMem(InMemoryDataset):
                 if key in ["trajs", "steps", "obj_type", "in_av_range"]:
                     raw_data1[key] = pd.Series([[raw_data0[key].values[0][i] for i in range(obj_len) if raw_data0["in_av_range"].values[0][i]==True]])
                 elif key in ["feats", "has_obss", "has_preds", "gt_preds"]:
+                  try:
                     raw_data1[key] = pd.Series([np.asarray([raw_data0[key].values[0][i] for i in range(obj_len) if raw_data0["in_av_range"].values[0][i]==True])])
+                  except:
+                    print(f'raw path: {raw_path}')
                 else:
                     raw_data1[key] = raw_data0[key]
             raw_data = pd.DataFrame(raw_data1)
