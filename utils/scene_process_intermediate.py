@@ -239,8 +239,8 @@ class scene_process():
             feat[step_obs, 2] = 1.0
             has_obs[step_obs] = True
 
-            if feat[-1, 0] < x_min or feat[-1, 0] > x_max or feat[-1, 1] < y_min or feat[-1, 1] > y_max:
-                continue
+#             if feat[-1, 0] < x_min or feat[-1, 0] > x_max or feat[-1, 1] < y_min or feat[-1, 1] > y_max:
+#                 continue
 
             feats.append(feat)
             has_obss.append(has_obs)
