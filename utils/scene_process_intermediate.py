@@ -25,7 +25,9 @@ class scene_process():
         self.normalized = normalized
         self.save_dir = save_dir
         self.abs_path = os.path.dirname(__file__)
-        self.loader = CarlaDataLoader(pjoin(self.abs_path,"../../{}".format(csv_folder)))
+#         self.loader = CarlaDataLoader(pjoin(self.abs_path,"../../{}".format(csv_folder)))
+        self.loader = CarlaDataLoader(pjoin("/content/drive/MyDrive/carla_data/","{}".format(csv_folder)))
+
 
     def __getitem__(self, idx, dir_post="train"):
         f_path = self.loader.seq_list[idx]
@@ -33,7 +35,7 @@ class scene_process():
         path, seq_f_name_ext = os.path.split(f_path)
 
         return self.process_and_save(df, seq_id=idx, file_name=seq_f_name_ext, 
-                                     dir_=pjoin(self.abs_path,"../../scene_mining_intermediate/",dir_post))
+                                     dir_=pjoin("/content/drive/MyDrive/carla_data/","scene_mining_intermediate/",dir_post))
     
     def process_and_save(self, df, seq_id, file_name, dir_=None):
         """
@@ -72,7 +74,7 @@ class scene_process():
         df.to_pickle(os.path.join(dir_, fname))
       
     def get_map_polygon_bbox(self):
-        rel_path = "../../maps/lanelet2/Town03.osm"
+        rel_path = "../maps/lanelet2/Town03.osm"
         roads = load_xml.load_lane_segments_from_xml(pjoin(self.abs_path, rel_path))
         polygon_bboxes, lane_starts, lane_ends = load_xml.build_polygon_bboxes(roads)
         self.roads = roads
