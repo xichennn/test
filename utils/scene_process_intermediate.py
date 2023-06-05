@@ -116,11 +116,12 @@ class scene_process():
         steps = [mapping[x] for x in df['frame'].values]
         steps = np.asarray(steps, np.int64)
 
-        objs = df.groupby(['vid', 'object_type', 'in_av_range']).groups
+        objs = df.groupby(['vid', 'obj_type_mpr_02', 'obj_type_mpr_04', 'obj_type_mpr_06', 'obj_type_mpr_08', 'in_av_range']).groups
         keys = list(objs.keys())
-        obj_type = [x[1] for x in keys]
+        obj_type_02 = [x[1] for x in keys]
         
-        cav_idx = obj_type.index("cav")
+        #different mprs have the same cav idcs
+        cav_idx = obj_type_02.index("cav")
         idcs = objs[keys[cav_idx]]
 
         cav_traj = trajs[idcs]
@@ -133,13 +134,19 @@ class scene_process():
             ngbr_trajs.append(trajs[idcs])
             ngbr_steps.append(steps[idcs])
 
-        obj_types = ['cav'] + [x[1] for x in keys]
-        in_av_ranges = [True] + [x[2] for x in keys]
+        obj_types_02 = ['cav'] + [x[1] for x in keys]
+        obj_types_04 = ['cav'] + [x[2] for x in keys]
+        obj_types_06 = ['cav'] + [x[3] for x in keys]
+        obj_types_08 = ['cav'] + [x[4] for x in keys]
+        in_av_ranges = [True] + [x[5] for x in keys]
 
         data = dict()
         data["trajs"] = [cav_traj] + ngbr_trajs
         data["steps"] = [cav_step] + ngbr_steps
-        data['obj_type'] = obj_types
+        data['obj_type_mpr_02'] = obj_types_02
+        data['obj_type_mpr_04'] = obj_types_04
+        data['obj_type_mpr_06'] = obj_types_06
+        data['obj_type_mpr_08'] = obj_types_08
         data["in_av_range"] = in_av_ranges
 
         return data
