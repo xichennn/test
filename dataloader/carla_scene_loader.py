@@ -122,6 +122,7 @@ class CarlaInMem(InMemoryDataset):
         idx = 0
         while idx<6:
             # loading the raw data
+            print("idx: ", idx)
             traj_lens = []
             valid_lens = []
             candidate_lens = []
