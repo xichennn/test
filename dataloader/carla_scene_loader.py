@@ -178,6 +178,7 @@ class CarlaInMem(InMemoryDataset):
             # Store the processed data
             data, slices = self.collate(data_list)
             torch.save((data, slices), self.processed_paths[idx])
+            print("saved features for idx: ", idx)
             idx += 1
     
 
