@@ -172,7 +172,8 @@ class CarlaInMem(InMemoryDataset):
 
                     orig=torch.from_numpy(raw_data['cav_orig'].values[0]).float().unsqueeze(0),
                     rot=torch.from_numpy(raw_data['rot'].values[0]).float().unsqueeze(0),
-                    seq_id=torch.tensor([int(raw_data['seq_id'])]).int()
+                    seq_id=torch.tensor([int(raw_data['seq_id'])]).int(),
+                    category=torch.tensor(raw_data['category'].values[0]).int()
                 )
                 data_list.append(graph_input)
 
