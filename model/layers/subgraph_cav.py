@@ -7,7 +7,7 @@ from torch_geometric.data import Data
 from torch_geometric.nn import MessagePassing, max_pool, avg_pool
 from torch_geometric.utils import add_self_loops, remove_self_loops
 
-from VectorNet.model.layers.basic_module import MLP
+from model.layers.basic_module import MLP
 
 class SubGraph1(nn.Module):
     """
