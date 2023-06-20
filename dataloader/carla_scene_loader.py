@@ -121,8 +121,9 @@ class CarlaInMem(InMemoryDataset):
         """ transform the raw data and store in GraphData"""
         idx = 0
         while idx<6:
+       
+            # read all neighbors in cv_range
             # loading the raw data
-            print("idx: ", idx)
             traj_lens = []
             valid_lens = []
             candidate_lens = []
@@ -150,7 +151,7 @@ class CarlaInMem(InMemoryDataset):
                 raw_data = self._get_raw_data(raw_path, idx)
 
                 # input data
-                x, cluster, edge_index, identifier = self._get_x(raw_data)
+                x, cluster, edge_index, identifier, cluster_cat = self._get_x(raw_data)
                 y = self._get_y(raw_data)
                 graph_input = GraphData(
                     x=torch.from_numpy(x).float(),
@@ -158,6 +159,7 @@ class CarlaInMem(InMemoryDataset):
                     cluster=torch.from_numpy(cluster).short(),
                     edge_index=torch.from_numpy(edge_index).long(),
                     identifier=torch.from_numpy(identifier).float(),    # the identify embedding of global graph completion
+                    category=torch.from_numpy(cluster_cat).int(),   #cluster categories, (1: cav, 2:av, 3:cv, -1:lane)
 
                     traj_len=torch.tensor([traj_lens[ind]]).int(),            # number of traj polyline
                     valid_len=torch.tensor([valid_lens[ind]]).int(),          # number of valid polyline
@@ -172,15 +174,15 @@ class CarlaInMem(InMemoryDataset):
 
                     orig=torch.from_numpy(raw_data['cav_orig'].values[0]).float().unsqueeze(0),
                     rot=torch.from_numpy(raw_data['rot'].values[0]).float().unsqueeze(0),
-                    seq_id=torch.tensor([int(raw_data['seq_id'])]).int(),
-                    category=torch.tensor(raw_data['category'].values[0]).int()
+                    seq_id=torch.tensor([int(raw_data['seq_id'])]).int()
                 )
+                    # category=torch.tensor(raw_data['category'].values[0]).int()
+                
                 data_list.append(graph_input)
 
             # Store the processed data
             data, slices = self.collate(data_list)
             torch.save((data, slices), self.processed_paths[idx])
-            print("saved features for idx: ", idx)
             idx += 1
     
 
@@ -200,6 +202,7 @@ class CarlaInMem(InMemoryDataset):
         data.x = torch.cat([data.x, torch.zeros((index_to_pad - valid_len, feature_len), dtype=data.x.dtype)])
         data.cluster = torch.cat([data.cluster, torch.arange(valid_len, index_to_pad, dtype=data.cluster.dtype)]).long()
         data.identifier = torch.cat([data.identifier, torch.zeros((index_to_pad - valid_len, 2), dtype=data.identifier.dtype)])
+        data.category = torch.cat([data.category, torch.zeros((index_to_pad - valid_len, 1), dtype=data.category.dtype)])
 
         # pad candidate and candidate_gt
         num_cand_max = data.candidate_len_max[0].item()
@@ -222,11 +225,11 @@ class CarlaInMem(InMemoryDataset):
         #numpy.float32: theta
         #numpy.int64: "ref_cetr_idx", "seq_id"
         #dict: graph
-        add category to df columns(0: cav, 1:av, 2:cv)
+        add category to df columns: 1:cav, 2:av, 3:cv, -1:lane
         """
         if idx == 0: #get all neighbors in cv range
             raw_data = pd.read_pickle(raw_path)
-            raw_data["category"] = pd.Series([[0]+[1]*(len(raw_data["in_av_range"].values[0])-1)])
+            raw_data["category"] = pd.Series([[1]+[2]*(len(raw_data["in_av_range"].values[0])-1)]) 
 
         elif idx == 1: #get all neighbors only in av range
             raw_data0 = pd.read_pickle(raw_path)
@@ -243,7 +246,7 @@ class CarlaInMem(InMemoryDataset):
                     raw_data1[key] = pd.Series([np.asarray([merge_with_cav[i] for i in range(obj_len) if raw_data0["in_av_range"].values[0][i]==True])])
                 else:
                     raw_data1[key] = raw_data0[key]
-            raw_data1["category"] = pd.Series([[0]+[1]*(len(raw_data1["in_av_range"].values[0])-1)])
+            raw_data1["category"] = pd.Series([[1]+[2]*(len(raw_data1["in_av_range"].values[0])-1)])
             raw_data = pd.DataFrame(raw_data1)
         
         elif idx in [2, 3, 4, 5]: #get all neighbors in cav range, mpr=0.2
@@ -253,17 +256,17 @@ class CarlaInMem(InMemoryDataset):
             obj_len = len(raw_data0["in_av_range"].values[0])
 
             idcs = [] #indices for vids that are both av and cv
-            category = [] #0:cav, 1:av,2:cv,3:av and cv
+            category = [] #1:cav,2:av,3:cv,-1:lane
             #find vid that are both cv and av
             for i in range(obj_len):
                 if raw_data0[mpr_keys[idx-2]].values[0][i] == "cav":
-                    category.append(0)
-                elif raw_data0["in_av_range"].values[0][i] == True:
                     category.append(1)
+                elif raw_data0["in_av_range"].values[0][i] == True:
+                    category.append(2)
                     if raw_data0[mpr_keys[idx-2]].values[0][i] == "cv":
                         idcs.append(i)
                 elif raw_data0["in_av_range"].values[0][i] == False and raw_data0[mpr_keys[idx-2]].values[0][i] == "cv":
-                    category.append(2)
+                    category.append(3)
                 
             for key in raw_data0.keys():
                 if key in ["trajs", "steps", "obj_type_mpr_02", "obj_type_mpr_04", "obj_type_mpr_06", "obj_type_mpr_08", "in_av_range"]:
@@ -287,18 +290,18 @@ class CarlaInMem(InMemoryDataset):
                                                     raw_data0[mpr_keys[idx-2]].values[0][i]=="cv")]
                     orig_features_add_errors = []
                     for j in range(len(category)):
-                        if category[j]==0:
+                        if category[j]==1:
                             orig_features_add_errors.append(orig_features[j]) 
-                        elif category[j]==1:
-                            orig_features_add_errors.append(np.squeeze(get_noisy_feats(np.expand_dims(orig_features[j],0), var=0.1),0))
                         elif category[j]==2:
+                            orig_features_add_errors.append(np.squeeze(get_noisy_feats(np.expand_dims(orig_features[j],0), var=0.1),0))
+                        elif category[j]==3:
                             orig_features_add_errors.append(np.squeeze(get_shifted_feats(np.expand_dims(orig_features[j],0), offset=1),0))
                     duplicate_features_add_errors = [np.squeeze(get_shifted_feats(np.expand_dims(raw_data0[key].values[0][j],0),offset=1),0) for j in idcs] #cv error
                     raw_data1[key] = pd.Series([np.asarray(orig_features_add_errors+duplicate_features_add_errors)])
             
                 else:
                     raw_data1[key] = raw_data0[key]
-            raw_data1["category"] = pd.Series([category + [2]*len(idcs)])
+            raw_data1["category"] = pd.Series([category + [3]*len(idcs)])
             raw_data = pd.DataFrame(raw_data1)
 
         return raw_data
@@ -306,27 +309,30 @@ class CarlaInMem(InMemoryDataset):
     @staticmethod
     def _get_x(data_seq):
         """
-        feat: [xs, ys, vec_x, vec_y, step(timestamp), polyline_id];
+        feat: [xs, ys, vec_x, vec_y, step(timestamp), polyline_category, polyline_id];
         xs, ys: the control point of the vector, for trajectory, it's start point, for lane segment, it's the center point;
         vec_x, vec_y: the length of the vector in x, y coordinates;
         step: indicating the step of the trajectory, for the lane node, it's always 0;
         polyline_id: the polyline id of this node belonging to;
         """
 
-        feats = np.empty((0, 6))
+        feats = np.empty((0, 7))
         edge_index = np.empty((2, 0), dtype=np.int64)
         identifier = np.empty((0, 2))
+        cluster_cat = np.empty((0,1), dtype=np.int64)
         
         #get traj features
         traj_feats = data_seq['feats'].values[0]
         traj_has_obss = data_seq['has_obss'].values[0]
         step = np.arange(0, traj_feats.shape[1]).reshape((-1, 1))
+        category = data_seq['category'].values[0]
         traj_cnt = 0
-        for _, [feat, has_obs] in enumerate(zip(traj_feats, traj_has_obss)):
+        for i, [feat, has_obs] in enumerate(zip(traj_feats, traj_has_obss)):
             xy_s = feat[has_obs][:-1, :2] #vector start 
             vec = feat[has_obs][1:, :2] - feat[has_obs][:-1, :2] #vector length
             polyline_id = np.ones((len(xy_s), 1)) * traj_cnt
-            feats = np.vstack([feats, np.hstack([xy_s, vec, step[has_obs][:-1], polyline_id])])
+            polyline_category = np.ones((len(xy_s), 1)) * category[i]
+            feats = np.vstack([feats, np.hstack([xy_s, vec, step[has_obs][:-1], polyline_category, polyline_id])])
             traj_cnt += 1
 
         #get lane features
@@ -334,21 +340,23 @@ class CarlaInMem(InMemoryDataset):
         ctrs = graph['ctrs']
         vec = graph['feats']
         lane_idcs = graph['lane_idcs'].reshape(-1, 1) + traj_cnt
+        lane_category = -1*np.ones((len(lane_idcs), 1)) #-1
         steps = np.zeros((len(lane_idcs), 1))
-        feats = np.vstack([feats, np.hstack([ctrs, vec, steps, lane_idcs])])
+        feats = np.vstack([feats, np.hstack([ctrs, vec, steps, lane_category, lane_idcs])])
 
         #get the cluster and construct subgraph edge_index
         cluster = copy(feats[:, -1].astype(np.int64)) #polyline_id & lane_id
         for cluster_idc in np.unique(cluster):
             [indices] = np.where(cluster == cluster_idc)
             identifier = np.vstack([identifier, np.min(feats[indices, :2], axis=0)])
+            cluster_cat = np.vstack([cluster_cat, np.mean(feats[indices, -2], axis=0)])
             if len(indices) <= 1:
                 continue                # skip if only 1 node
             if cluster_idc < traj_cnt:
-                edge_index = np.hstack([edge_index, get_fc_edge_index(indices)])
+                edge_index = np.hstack([edge_index, get_traj_edge_index(indices)])
             else:
                 edge_index = np.hstack([edge_index, get_fc_edge_index(indices)])
-        return feats, cluster, edge_index, identifier
+        return feats, cluster, edge_index, identifier, cluster_cat
     
     @staticmethod
     def _get_y(data_seq):
@@ -367,5 +375,3 @@ if __name__ == "__main__":
     for k in range(1):
         for i, data in enumerate(tqdm(batch_iter, total=len(batch_iter), bar_format="{l_bar}{r_bar}")):
             pass
-
-
