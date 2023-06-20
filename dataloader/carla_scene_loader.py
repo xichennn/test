@@ -121,7 +121,7 @@ class CarlaInMem(InMemoryDataset):
         """ transform the raw data and store in GraphData"""
         idx = 0
         while idx<6:
-       
+            print("idx: ", idx)
             # read all neighbors in cv_range
             # loading the raw data
             traj_lens = []
@@ -183,6 +183,7 @@ class CarlaInMem(InMemoryDataset):
             # Store the processed data
             data, slices = self.collate(data_list)
             torch.save((data, slices), self.processed_paths[idx])
+            print("complete idx: ", idx)
             idx += 1
     
 
