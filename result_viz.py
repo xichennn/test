@@ -70,7 +70,8 @@ def reconstruct_polylines(features):
     vec_xs = features[:,2]
     vec_ys = features[:,3]
     steps = features[:,4]
-    poly_id = features[:,5]
+    category = features[:,5]
+    poly_id = features[:,6]
 
     #visualize cav
     idx0 = (poly_id == 0).nonzero(as_tuple=True)
