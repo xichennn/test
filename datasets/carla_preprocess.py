@@ -42,7 +42,7 @@ class CarlaDataset(Dataset):
         self._split = split
         self._radius = radius
         self._local_radius = local_radius
-        self._directory = "scene_mining_cav/mpr0/"
+        self._directory = "scene_mining_hivt"
         # if split == 'train':
         #     self._directory = 'train'
         # elif split == 'val':
