@@ -18,9 +18,10 @@ import torch.nn.functional as F
 
 from losses import LaplaceNLLLoss
 from losses import SoftTargetCrossEntropyLoss
-from metrics import ADE
-from metrics import FDE
-from metrics import MR
+# from metrics import ADE
+# from metrics import FDE
+# from metrics import MR
+from metrics.metric import ade, fde, mr
 from models import GlobalInteractor
 from models import LocalEncoder
 from models import MLPDecoder
@@ -83,9 +84,12 @@ class HiVT(pl.LightningModule):
         self.reg_loss = LaplaceNLLLoss(reduction='mean')
         self.cls_loss = SoftTargetCrossEntropyLoss(reduction='mean')
 
-        self.minADE = ADE()
-        self.minFDE = FDE()
-        self.minMR = MR()
+        # self.minADE = ADE()
+        # self.minFDE = FDE()
+        # self.minMR = MR()
+        self.minADE = ade
+        self.minFDE = fde
+        self.minMR = mr
 
     def forward(self, data: TemporalData):
         if self.rotate:
@@ -136,12 +140,18 @@ class HiVT(pl.LightningModule):
         fde_cav = torch.norm(y_hat_cav[:, :, -1] - y_cav[:, -1], p=2, dim=-1)
         best_mode_cav = fde_cav.argmin(dim=0)
         y_hat_best_cav = y_hat_cav[best_mode_cav, torch.arange(data.num_graphs)]
-        self.minADE.update(y_hat_best_cav, y_cav)
-        self.minFDE.update(y_hat_best_cav, y_cav)
-        self.minMR.update(y_hat_best_cav, y_cav)
-        self.log('val_minADE', self.minADE, prog_bar=True, on_step=False, on_epoch=True, batch_size=y_cav.size(0))
-        self.log('val_minFDE', self.minFDE, prog_bar=True, on_step=False, on_epoch=True, batch_size=y_cav.size(0))
-        self.log('val_minMR', self.minMR, prog_bar=True, on_step=False, on_epoch=True, batch_size=y_cav.size(0))
+        # self.minADE.update(y_hat_best_cav, y_cav)
+        # self.minFDE.update(y_hat_best_cav, y_cav)
+        # self.minMR.update(y_hat_best_cav, y_cav)
+        minade = self.minADE(y_hat_best_cav, y_cav)
+        minfde = self.minFDE(y_hat_best_cav, y_cav)
+        minmr = self.minMR(y_hat_best_cav, y_cav)
+        # self.log('val_minADE', self.minADE, prog_bar=True, on_step=False, on_epoch=True, batch_size=y_cav.size(0))
+        # self.log('val_minFDE', self.minFDE, prog_bar=True, on_step=False, on_epoch=True, batch_size=y_cav.size(0))
+        # self.log('val_minMR', self.minMR, prog_bar=True, on_step=False, on_epoch=True, batch_size=y_cav.size(0))
+        self.log('val_minADE', minade, prog_bar=True, on_step=False, on_epoch=True, batch_size=y_cav.size(0))
+        self.log('val_minFDE', minfde, prog_bar=True, on_step=False, on_epoch=True, batch_size=y_cav.size(0))
+        self.log('val_minMR', minmr, prog_bar=True, on_step=False, on_epoch=True, batch_size=y_cav.size(0))
 
     def configure_optimizers(self):
         decay = set()
