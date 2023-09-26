@@ -174,7 +174,8 @@ class CarlaDataset(Dataset):
         lane_pos, lane_vectors, lane_idcs, lane_actor_index, lane_actor_attr = \
                 self.get_lane_feats(origin, rotate_mat, num_nodes, positions, radius, local_radius)
 
-        y = None if split == 'test' else x[:, 50:]
+        # y = None if split == 'test' else x[:, 50:]
+        y = x[:, 50:]
         seq_id = os.path.splitext(os.path.basename(raw_path))[0]
 
         return {
