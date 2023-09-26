@@ -145,7 +145,7 @@ class HiVT(pl.LightningModule):
         # self.minMR.update(y_hat_best_cav, y_cav)
         minade = self.minADE(y_hat_best_cav, y_cav)
         minfde = self.minFDE(y_hat_best_cav, y_cav)
-        minmr = self.minMR(y_hat_best_cav, y_cav)
+        minmr = self.minMR(y_hat_best_cav, y_cav, 2)
         # self.log('val_minADE', self.minADE, prog_bar=True, on_step=False, on_epoch=True, batch_size=y_cav.size(0))
         # self.log('val_minFDE', self.minFDE, prog_bar=True, on_step=False, on_epoch=True, batch_size=y_cav.size(0))
         # self.log('val_minMR', self.minMR, prog_bar=True, on_step=False, on_epoch=True, batch_size=y_cav.size(0))
