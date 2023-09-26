@@ -42,7 +42,7 @@ class CarlaDataset(Dataset):
         self._split = split
         self._radius = radius
         self._local_radius = local_radius
-        self._directory = "../scene_mining_intermediate/small_data"
+        self._directory = "scene_mining_hivt"
         # if split == 'train':
         #     self._directory = 'train'
         # elif split == 'val':
@@ -63,7 +63,7 @@ class CarlaDataset(Dataset):
 
     @property
     def processed_dir(self) -> str:
-        return os.path.join(self.root, 'processed', self._split)
+        return os.path.join(self.root, 'scene_mining_hivt/processed', self._split)
 
     @property
     def raw_file_names(self) -> Union[str, List[str], Tuple]:
@@ -91,7 +91,7 @@ class CarlaDataset(Dataset):
         return torch.load(self.processed_paths[idx])
 
     def get_map_polygon_bbox(self):
-        rel_path = "../maps/lanelet2/Town03.osm"
+        rel_path = "Town03.osm"
         roads = load_xml.load_lane_segments_from_xml(pjoin(self.root, rel_path))
         polygon_bboxes, lane_starts, lane_ends = load_xml.build_polygon_bboxes(roads)
         self.roads = roads

@@ -11,4 +11,4 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from datamodules.argoverse_v1_datamodule import ArgoverseV1DataModule
+# from datamodules.argoverse_v1_datamodule import ArgoverseV1DataModule
