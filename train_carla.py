@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     parser = ArgumentParser()
     # parser.add_argument('--root', type=str, required=True)
-    parser.add_argument('--root', type=str, default='/Users/xichen/Documents/paper2-traj-pred/carla-data/HiVT')
+    parser.add_argument('--root', type=str, default="/content/drive/MyDrive/carla_data/")
     parser.add_argument('--train_batch_size', type=int, default=2)
     parser.add_argument('--val_batch_size', type=int, default=2)
     parser.add_argument('--shuffle', type=bool, default=True)
