@@ -90,6 +90,7 @@ class HiVT(pl.LightningModule):
         self.minADE = ade
         self.minFDE = fde
         self.minMR = mr
+        self.test_loss = []
 
     def forward(self, data: TemporalData):
         if self.rotate:
@@ -153,6 +154,30 @@ class HiVT(pl.LightningModule):
         self.log('val_minFDE', minfde, prog_bar=True, on_step=False, on_epoch=True, batch_size=y_cav.size(0))
         self.log('val_minMR', minmr, prog_bar=True, on_step=False, on_epoch=True, batch_size=y_cav.size(0))
 
+    def test_step(self, data, batch_idx):
+        y_hat, pi = self(data)
+        reg_mask = ~data['padding_mask'][:, self.historical_steps:]
+        l2_norm = (torch.norm(y_hat[:, :, :, : 2] - data.y, p=2, dim=-1) * reg_mask).sum(dim=-1)  # [F, N]
+        best_mode = l2_norm.argmin(dim=0)
+        y_hat_best = y_hat[best_mode, torch.arange(data.num_nodes)]
+        reg_loss = self.reg_loss(y_hat_best[reg_mask], data.y[reg_mask])
+        self.test_loss.append((torch.norm(y_hat_best[:,:,:2] - data.y, p=2, dim=-1)) * reg_mask)
+        self.log('val_reg_loss', reg_loss, prog_bar=True, on_step=False, on_epoch=True, batch_size=1)
+
+        y_hat_cav = y_hat[:, data['cav_index'], :, : 2]
+        y_cav = data.y[data['cav_index']]
+        fde_cav = torch.norm(y_hat_cav[:, :, -1] - y_cav[:, -1], p=2, dim=-1)
+        best_mode_cav = fde_cav.argmin(dim=0)
+        y_hat_best_cav = y_hat_cav[best_mode_cav, torch.arange(data.num_graphs)]
+        self.minADE.update(y_hat_best_cav, y_cav)
+        self.minFDE.update(y_hat_best_cav, y_cav)
+        self.minMR.update(y_hat_best_cav, y_cav)
+        self.log('val_minADE', self.minADE, prog_bar=True, on_step=False, on_epoch=True, batch_size=y_cav.size(0))
+        self.log('val_minFDE', self.minFDE, prog_bar=True, on_step=False, on_epoch=True, batch_size=y_cav.size(0))
+        self.log('val_minMR', self.minMR, prog_bar=True, on_step=False, on_epoch=True, batch_size=y_cav.size(0))
+    
+        return torch.tensor(self.test_loss).mean(dim=0)
+        
     def configure_optimizers(self):
         decay = set()
         no_decay = set()
