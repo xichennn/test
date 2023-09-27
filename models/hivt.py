@@ -90,7 +90,7 @@ class HiVT(pl.LightningModule):
         self.minADE = ade
         self.minFDE = fde
         self.minMR = mr
-        self.test_loss = []
+        self.test_loss = torch.empty((0, self.future_steps), device="cuda")
 
     def forward(self, data: TemporalData):
         if self.rotate:
@@ -161,7 +161,8 @@ class HiVT(pl.LightningModule):
         best_mode = l2_norm.argmin(dim=0)
         y_hat_best = y_hat[best_mode, torch.arange(data.num_nodes)]
         reg_loss = self.reg_loss(y_hat_best[reg_mask], data.y[reg_mask])
-        self.test_loss.append((torch.norm(y_hat_best[:,:,:2] - data.y, p=2, dim=-1)) * reg_mask)
+        stepwise_loss = (torch.norm(y_hat_best[:,:,:2] - data.y, p=2, dim=-1)) * reg_mask
+        self.test_loss = torch.cat((self.test_loss, stepwise_loss), dim=0)
         self.log('val_reg_loss', reg_loss, prog_bar=True, on_step=False, on_epoch=True, batch_size=1)
 
         y_hat_cav = y_hat[:, data['cav_index'], :, : 2]
